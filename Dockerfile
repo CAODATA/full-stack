@@ -34,9 +34,9 @@ COPY . .
 # Build the Next.js app
 RUN npm run build
 
-# Expose port (Next.js start will honor PORT env variable set by cloud hosting like Hugging Face or Render)
-ENV PORT 3000
-EXPOSE 3000
+# Expose port (Hugging Face Spaces expects port 7860 by default)
+ENV PORT 7860
+EXPOSE 7860
 
 # Start command
 CMD ["npm", "start"]
