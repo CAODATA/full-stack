@@ -166,6 +166,10 @@ def parse_comments(html_content, post_url):
     seen_comments = set()
     
     for tag in dir_auto_tags:
+        # Skip if the tag is inside an anchor link (representing the author's name, not the comment body)
+        if tag.find_parent('a'):
+            continue
+            
         text = tag.get_text().strip()
         if not text or len(text) < 1:
             continue
@@ -248,7 +252,8 @@ def get_elements_coordinates_and_roles(driver):
     try:
         js_script = """
         var results = [];
-        var aTags = document.querySelectorAll('a[href*="profile.php"], a[href*="/user/"], a');
+        var container = document.querySelector('div[role="main"]') || document.querySelector('div[role="dialog"]') || document;
+        var aTags = container.querySelectorAll('a[href*="profile.php"], a[href*="/user/"], a');
         var seenWrappers = new Set();
         
         aTags.forEach(function(a) {
@@ -286,12 +291,16 @@ def get_elements_coordinates_and_roles(driver):
             
             for (var i = 0; i < 5; i++) {
                 if (!p) break;
-                var dirAuto = p.querySelector('[dir="auto"]');
-                if (dirAuto && dirAuto.innerText.trim().length > 0 && dirAuto !== a) {
-                    textEl = dirAuto;
-                    wrapper = p;
-                    break;
+                var dirAutos = p.querySelectorAll('[dir="auto"]');
+                for (var j = 0; j < dirAutos.length; j++) {
+                    var el = dirAutos[j];
+                    if (el && el.innerText.trim().length > 0 && !a.contains(el)) {
+                        textEl = el;
+                        wrapper = p;
+                        break;
+                    }
                 }
+                if (wrapper) break;
                 p = p.parentElement;
             }
             
