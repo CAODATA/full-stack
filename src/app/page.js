@@ -7,7 +7,7 @@ export default function Home() {
   const [error, setError] = useState(null);
   const [chromeUserData, setChromeUserData] = useState('');
   const [chromeProfile, setChromeProfile] = useState('Default');
-  const [maxComments, setMaxComments] = useState(200);
+  const [maxComments, setMaxComments] = useState('');
   const [fbEmail, setFbEmail] = useState('');
   const [fbPassword, setFbPassword] = useState('');
 
@@ -130,6 +130,7 @@ export default function Home() {
               value={maxComments}
               onChange={(e) => setMaxComments(e.target.value)}
               style={styles.input}
+              placeholder="Để trống để cào tất cả (hoặc điền số cụ thể: 50, 500, 1000...)"
               min="1"
             />
           </div>
