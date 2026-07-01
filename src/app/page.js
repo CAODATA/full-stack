@@ -5,7 +5,6 @@ export default function Home() {
   const [links, setLinks] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [showAdvanced, setShowAdvanced] = useState(false);
   const [chromeUserData, setChromeUserData] = useState('');
   const [chromeProfile, setChromeProfile] = useState('Default');
   const [maxComments, setMaxComments] = useState(200);
@@ -123,88 +122,26 @@ export default function Home() {
             </div>
           )}
 
-          {/* Advanced config accordion */}
-          <div style={styles.advancedWrapper}>
-            <button
-              type="button"
-              onClick={() => setShowAdvanced(!showAdvanced)}
-              style={styles.advancedToggle}
-            >
-              <span>⚙️ Cấu hình nâng cao (Facebook & Số lượng)</span>
-              <span style={{
-                transform: showAdvanced ? 'rotate(180deg)' : 'rotate(0deg)',
-                transition: 'transform 0.2s',
-                display: 'inline-block'
-              }}>▼</span>
-            </button>
-
-            {showAdvanced && (
-              <div style={styles.advancedContent}>
-                <div style={styles.inputGroup}>
-                  <label style={styles.labelSub}>Số lượng cmt tối đa mỗi link:</label>
-                  <input
-                    type="number"
-                    value={maxComments}
-                    onChange={(e) => setMaxComments(e.target.value)}
-                    style={styles.input}
-                  />
-                </div>
-
-                <div style={styles.inputGroup}>
-                  <label style={styles.labelSub}>Đường dẫn Chrome User Data:</label>
-                  <input
-                    type="text"
-                    value={chromeUserData}
-                    onChange={(e) => setChromeUserData(e.target.value)}
-                    style={styles.input}
-                    placeholder="Tự động nhận diện (Để trống để tự động lấy Chrome của máy bạn)"
-                  />
-                </div>
-
-                <div style={styles.inputGroup}>
-                  <label style={styles.labelSub}>Tên Chrome Profile:</label>
-                  <input
-                    type="text"
-                    value={chromeProfile}
-                    onChange={(e) => setChromeProfile(e.target.value)}
-                    style={styles.input}
-                  />
-                </div>
-
-                <div style={styles.inputGroup}>
-                  <label style={styles.labelSub}>Tài khoản Facebook (Tùy chọn):</label>
-                  <input
-                    type="text"
-                    value={fbEmail}
-                    onChange={(e) => setFbEmail(e.target.value)}
-                    style={styles.input}
-                    placeholder="Email hoặc số điện thoại đăng nhập Facebook"
-                  />
-                </div>
-
-                <div style={styles.inputGroup}>
-                  <label style={styles.labelSub}>Mật khẩu Facebook (Tùy chọn):</label>
-                  <input
-                    type="password"
-                    value={fbPassword}
-                    onChange={(e) => setFbPassword(e.target.value)}
-                    style={styles.input}
-                    placeholder="Mật khẩu tài khoản Facebook"
-                  />
-                </div>
-
-                {fbCount > 0 && (
-                  <div style={styles.noticeCard}>
-                    <p style={styles.noticeTitle}>⚠️ Lưu ý cào Facebook:</p>
-                    <p style={styles.noticeText}>
-                      1. Bạn cần <b>đóng hoàn toàn tất cả cửa sổ Chrome thường</b> trên máy trước khi bắt đầu.<br />
-                      2. Đảm bảo Profile Chrome đã cấu hình ở trên đã đăng nhập sẵn vào Facebook.
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
+          {/* Số lượng cmt */}
+          <div style={styles.inputGroup}>
+            <label style={styles.label}>Số lượng bình luận tối đa mỗi link:</label>
+            <input
+              type="number"
+              value={maxComments}
+              onChange={(e) => setMaxComments(e.target.value)}
+              style={styles.input}
+              min="1"
+            />
           </div>
+
+          {fbCount > 0 && (
+            <div style={styles.noticeCard}>
+              <p style={styles.noticeTitle}>⚠️ Lưu ý cào Facebook:</p>
+              <p style={styles.noticeText}>
+                Bạn cần <b>đóng hoàn toàn tất cả cửa sổ trình duyệt Chrome thường</b> đang mở trên máy tính trước khi bấm nút cào để tránh lỗi xung đột profile Chrome.
+              </p>
+            </div>
+          )}
 
           {error && <div style={styles.error}>{error}</div>}
 

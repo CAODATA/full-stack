@@ -251,8 +251,8 @@ export async function POST(req) {
         chrome_user_data: finalUserData,
         chrome_profile: chromeProfile || 'Default',
         max_comments: maxComments ? parseInt(maxComments) : 100,
-        fb_email: fbEmail || '',
-        fb_password: fbPassword || ''
+        fb_email: fbEmail || process.env.FB_EMAIL || '',
+        fb_password: fbPassword || process.env.FB_PASSWORD || ''
       };
 
       try {
