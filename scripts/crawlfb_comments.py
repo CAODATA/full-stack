@@ -182,12 +182,20 @@ def parse_comments(html_content, post_url):
             for link in links:
                 href = link['href']
                 link_text = link.get_text().strip()
+                
+                # Normalize href to relative path
+                path = href
+                for prefix in ["https://www.facebook.com", "http://www.facebook.com", "https://facebook.com", "http://facebook.com"]:
+                    if path.startswith(prefix):
+                        path = path[len(prefix):]
+                        break
+                        
                 is_profile = False
-                if 'profile.php' in href or '/user/' in href:
+                if 'profile.php' in path or '/user/' in path:
                     is_profile = True
-                elif href.startswith('/') and len(href) > 2:
+                elif path.startswith('/') and len(path) > 2:
                     system_paths = ['/posts/', '/photos/', '/videos/', '/groups/', '/permalink', '/sharer', '/messages', '/notifications', '/watch', '/marketplace', '/friends', '/bookmark', '/policies', '/help', '/settings', '/privacy', '/home.php', '/ajax/', '/ads/', '/hashtag/']
-                    if not any(sp in href for sp in system_paths):
+                    if not any(sp in path for sp in system_paths):
                         is_profile = True
                 
                 if is_profile and link_text and link_text not in ['Thích', 'Like', 'Phản hồi', 'Reply', 'Chia sẻ', 'Share']:
@@ -246,16 +254,26 @@ def get_elements_coordinates_and_roles(driver):
         aTags.forEach(function(a) {
             var href = a.getAttribute('href') || '';
             var name = a.innerText.trim();
-            if (!name || name.length < 2 || name.includes('\\n') || ['Thích', 'Like', 'Phản hồi', 'Reply', 'Chia sẻ', 'Share'].includes(name)) return;
+            if (!name || name.length < 2 || name.includes('\n') || ['Thích', 'Like', 'Phản hồi', 'Reply', 'Chia sẻ', 'Share'].includes(name)) return;
+            
+            // Normalize href to relative path
+            var path = href;
+            var prefixes = ['https://www.facebook.com', 'http://www.facebook.com', 'https://facebook.com', 'http://facebook.com'];
+            for (var i = 0; i < prefixes.length; i++) {
+                if (path.indexOf(prefixes[i]) === 0) {
+                    path = path.substring(prefixes[i].length);
+                    break;
+                }
+            }
             
             var isProfile = false;
-            if (href.includes('profile.php') || href.includes('/user/')) {
+            if (path.includes('profile.php') || path.includes('/user/')) {
                 isProfile = true;
-            } else if (href.startsWith('/') && href.length > 2) {
+            } else if (path.startsWith('/') && path.length > 2) {
                 var systemPaths = ['/posts/', '/photos/', '/videos/', '/groups/', '/permalink', '/sharer', '/messages', '/notifications', '/watch', '/marketplace', '/friends', '/bookmark', '/policies', '/help', '/settings', '/privacy', '/home.php', '/ajax/', '/ads/', '/hashtag/'];
                 var matchSystem = false;
                 for (var i = 0; i < systemPaths.length; i++) {
-                    if (href.includes(systemPaths[i])) { matchSystem = true; break; }
+                    if (path.includes(systemPaths[i])) { matchSystem = true; break; }
                 }
                 if (!matchSystem) isProfile = true;
             }
@@ -377,10 +395,11 @@ def login_facebook_if_needed(driver, email, password):
     if not email or not password:
         return
     logger.info("🔑 Đang kiểm tra trạng thái đăng nhập Facebook...")
-    driver.get("https://www.facebook.com/")
-    time.sleep(3)
+    driver.get("https://www.facebook.com/login.php")
+    time.sleep(4)
+    logger.info(f"📍 Trang đăng nhập hiện tại: {driver.current_url} | Tiêu đề: {driver.title}")
     
-    # Check if already logged in (look for search bar or navigation)
+    # Check if already logged in
     is_logged_in = False
     for xpath in [
         "//input[@placeholder='Tìm kiếm trên Facebook']",
@@ -398,27 +417,97 @@ def login_facebook_if_needed(driver, email, password):
         logger.info("✅ Đã đăng nhập Facebook sẵn.")
         return
         
-    logger.info("🔑 Chưa đăng nhập. Đang tiến hành đăng nhập tự động...")
+    logger.info("🔑 Chưa đăng nhập. Tiến hành xử lý Cookie banner và đăng nhập...")
+    
+    # Cookie consent banner acceptance
+    cookie_xpaths = [
+        "//button[@data-cookiebanner='accept_button']",
+        "//button[contains(@data-testid, 'cookie-policy')]",
+        "//button[contains(text(), 'Allow')]",
+        "//button[contains(text(), 'Accept')]",
+        "//span[contains(text(), 'Cho phép')]/..",
+        "//button[contains(text(), 'Cho phép')]",
+        "//button[contains(text(), 'Chấp nhận')]"
+    ]
+    for xpath in cookie_xpaths:
+        try:
+            btn = driver.find_element(By.XPATH, xpath)
+            if btn.is_displayed():
+                driver.execute_script("arguments[0].click();", btn)
+                logger.info("🍪 Đã chấp nhận cookie banner.")
+                time.sleep(2)
+                break
+        except Exception:
+            pass
+
     try:
-        email_input = driver.find_element(By.ID, "email")
-        pass_input = driver.find_element(By.ID, "pass")
-        login_btn = driver.find_element(By.NAME, "login")
-        
-        email_input.clear()
-        email_input.send_keys(email)
-        time.sleep(0.5)
-        pass_input.clear()
-        pass_input.send_keys(password)
-        time.sleep(0.5)
-        
-        login_btn.click()
-        logger.info("⏳ Chờ điều hướng đăng nhập...")
-        time.sleep(6)
-        
-        # Verify login succeeded
-        driver.get("https://www.facebook.com/")
-        time.sleep(3)
-        logger.info("✅ Hoàn tất đăng nhập.")
+        # Find email input
+        email_input = None
+        for selector in [
+            (By.ID, "email"),
+            (By.NAME, "email"),
+            (By.XPATH, "//input[@type='text']"),
+            (By.XPATH, "//input[@placeholder='Email' or @placeholder='Số điện thoại']")
+        ]:
+            try:
+                el = driver.find_element(*selector)
+                if el.is_displayed():
+                    email_input = el
+                    break
+            except Exception:
+                continue
+
+        # Find password input
+        pass_input = None
+        for selector in [
+            (By.ID, "pass"),
+            (By.NAME, "pass"),
+            (By.XPATH, "//input[@type='password']"),
+            (By.XPATH, "//input[@placeholder='Mật khẩu' or @placeholder='Password']")
+        ]:
+            try:
+                el = driver.find_element(*selector)
+                if el.is_displayed():
+                    pass_input = el
+                    break
+            except Exception:
+                continue
+
+        # Find login button
+        login_btn = None
+        for selector in [
+            (By.NAME, "login"),
+            (By.ID, "loginbutton"),
+            (By.XPATH, "//button[@type='submit']"),
+            (By.XPATH, "//input[@type='submit']")
+        ]:
+            try:
+                el = driver.find_element(*selector)
+                if el.is_displayed():
+                    login_btn = el
+                    break
+            except Exception:
+                continue
+
+        if email_input and pass_input and login_btn:
+            email_input.clear()
+            email_input.send_keys(email)
+            time.sleep(0.5)
+            pass_input.clear()
+            pass_input.send_keys(password)
+            time.sleep(0.5)
+            
+            driver.execute_script("arguments[0].click();", login_btn)
+            logger.info("⏳ Đã bấm nút đăng nhập. Chờ điều hướng...")
+            time.sleep(8)
+            
+            logger.info(f"📍 URL sau khi đăng nhập: {driver.current_url} | Tiêu đề: {driver.title}")
+            driver.get("https://www.facebook.com/")
+            time.sleep(4)
+            logger.info("✅ Hoàn tất quá trình đăng nhập.")
+        else:
+            logger.error("❌ Không tìm thấy đủ các ô nhập email/mật khẩu hoặc nút đăng nhập.")
+            logger.info(f"Độ dài trang hiện tại: {len(driver.page_source)} ký tự.")
     except Exception as e:
         logger.error(f"❌ Đăng nhập tự động thất bại: {e}")
 
