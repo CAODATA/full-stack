@@ -26,6 +26,10 @@ def init_driver(user_data_dir, profile_name):
     if profile_name:
         opts.add_argument(f"--profile-directory={profile_name}")
     
+    import sys
+    if sys.platform != "win32":
+        opts.add_argument("--headless=new")
+        
     opts.add_argument("--disable-notifications")
     opts.add_argument("--disable-infobars")
     opts.add_argument("--window-size=1280,900")
