@@ -254,7 +254,7 @@ def get_elements_coordinates_and_roles(driver):
         aTags.forEach(function(a) {
             var href = a.getAttribute('href') || '';
             var name = a.innerText.trim();
-            if (!name || name.length < 2 || name.includes('\n') || ['Thích', 'Like', 'Phản hồi', 'Reply', 'Chia sẻ', 'Share'].includes(name)) return;
+            if (!name || name.length < 2 || name.includes('\\n') || ['Thích', 'Like', 'Phản hồi', 'Reply', 'Chia sẻ', 'Share'].includes(name)) return;
             
             // Normalize href to relative path
             var path = href;
@@ -311,7 +311,6 @@ def get_elements_coordinates_and_roles(driver):
                         }
                     }
                 }
-                
                 results.push({
                     author: name,
                     text: textEl.innerText.trim(),
@@ -451,9 +450,8 @@ def login_facebook_if_needed(driver, email, password):
         ]:
             try:
                 el = driver.find_element(*selector)
-                if el.is_displayed():
-                    email_input = el
-                    break
+                email_input = el
+                break
             except Exception:
                 continue
 
@@ -467,9 +465,8 @@ def login_facebook_if_needed(driver, email, password):
         ]:
             try:
                 el = driver.find_element(*selector)
-                if el.is_displayed():
-                    pass_input = el
-                    break
+                pass_input = el
+                break
             except Exception:
                 continue
 
@@ -483,9 +480,8 @@ def login_facebook_if_needed(driver, email, password):
         ]:
             try:
                 el = driver.find_element(*selector)
-                if el.is_displayed():
-                    login_btn = el
-                    break
+                login_btn = el
+                break
             except Exception:
                 continue
 
@@ -502,14 +498,19 @@ def login_facebook_if_needed(driver, email, password):
             time.sleep(8)
             
             logger.info(f"📍 URL sau khi đăng nhập: {driver.current_url} | Tiêu đề: {driver.title}")
+            
+            # Check if login was blocked or succeeded
+            if "login" in driver.current_url or "checkpoint" in driver.current_url:
+                raise Exception(f"Đăng nhập thất bại. Trình duyệt đang đứng tại: {driver.current_url}")
+                
             driver.get("https://www.facebook.com/")
             time.sleep(4)
             logger.info("✅ Hoàn tất quá trình đăng nhập.")
         else:
-            logger.error("❌ Không tìm thấy đủ các ô nhập email/mật khẩu hoặc nút đăng nhập.")
-            logger.info(f"Độ dài trang hiện tại: {len(driver.page_source)} ký tự.")
+            raise Exception("Không tìm thấy đủ các ô nhập email/mật khẩu hoặc nút đăng nhập để thực hiện đăng nhập Facebook.")
     except Exception as e:
         logger.error(f"❌ Đăng nhập tự động thất bại: {e}")
+        raise e
 
 def main():
     if len(sys.argv) < 2:
