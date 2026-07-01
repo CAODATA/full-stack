@@ -162,89 +162,70 @@ def parse_comments(html_content, post_url):
     soup = BeautifulSoup(html_content, 'html.parser')
     comments = []
     
-    dir_auto_tags = soup.find_all(lambda tag: tag.name in ['div', 'span'] and tag.get('dir') == 'auto')
+    comment_tags = soup.find_all(attrs={"role": "comment"})
     seen_comments = set()
     
-    for tag in dir_auto_tags:
-        # Skip if the tag is inside an anchor link (representing the author's name, not the comment body)
-        if tag.find_parent('a'):
-            continue
-            
-        text = tag.get_text().strip()
-        if not text or len(text) < 1:
-            continue
-            
+    for comment_el in comment_tags:
+        # Find author name
         author_name = None
-        author_url = None
-        comment_wrapper = None
-        
-        curr = tag
-        for _ in range(5):
-            if not curr:
-                break
-            links = curr.find_all('a', href=True)
-            for link in links:
-                href = link['href']
-                link_text = link.get_text().strip()
-                
-                # Normalize href to relative path
-                path = href
-                for prefix in ["https://www.facebook.com", "http://www.facebook.com", "https://facebook.com", "http://facebook.com"]:
-                    if path.startswith(prefix):
-                        path = path[len(prefix):]
-                        break
-                        
-                is_profile = False
-                if 'profile.php' in path or '/user/' in path:
-                    is_profile = True
-                elif path.startswith('/') and len(path) > 2:
-                    system_paths = ['/posts/', '/photos/', '/videos/', '/groups/', '/permalink', '/sharer', '/messages', '/notifications', '/watch', '/marketplace', '/friends', '/bookmark', '/policies', '/help', '/settings', '/privacy', '/home.php', '/ajax/', '/ads/', '/hashtag/']
-                    if not any(sp in path for sp in system_paths):
-                        is_profile = True
-                
-                if is_profile and link_text and link_text not in ['Thích', 'Like', 'Phản hồi', 'Reply', 'Chia sẻ', 'Share']:
-                    author_name = link_text
-                    author_url = "https://www.facebook.com" + href if href.startswith('/') else href
-                    comment_wrapper = curr
-                    break
-            if author_name:
-                break
-            curr = curr.parent
-
-        if author_name and comment_wrapper:
-            unique_key = f"{author_name}|{text[:100]}"
-            if unique_key in seen_comments:
+        links = comment_el.find_all('a')
+        for link in links:
+            # Ensure this link is directly inside this comment, not in a nested comment
+            parent_comment = link.find_parent(attrs={"role": "comment"})
+            if parent_comment != comment_el:
                 continue
-            seen_comments.add(unique_key)
-
-            likes = 0
-            reaction_els = comment_wrapper.find_all(lambda tag: tag.name in ['div', 'span'] and tag.get('aria-label') and any(x in tag.get('aria-label').lower() for x in ['thích', 'like', 'reaction', 'bày tỏ']))
-            for rx in reaction_els:
-                rx_text = rx.get_text().strip()
-                if rx_text.isdigit():
-                    likes = int(rx_text)
-                    break
+            name = link.get_text().strip()
+            if name and len(name) >= 2 and '\n' not in name and name not in ['Thích', 'Like', 'Phản hồi', 'Reply', 'Chia sẻ', 'Share']:
+                author_name = name
+                break
+                
+        if not author_name:
+            continue
             
-            published_at = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
-            time_links = comment_wrapper.find_all('a', href=True)
-            for link in time_links:
-                href = link['href']
-                if 'comment_id=' in href or '/posts/' in href or '/permalink' in href:
-                    time_text = link.get_text().strip()
-                    if time_text and len(time_text) < 15 and any(char.isdigit() for char in time_text):
-                        published_at = time_text
-                        break
-
-            comments.append({
-                "video_id": post_url,
-                "type": "comment",
-                "author": author_name,
-                "text": text,
-                "likes": likes,
-                "published_at": published_at,
-                "parent_author": None
-            })
-
+        # Find text content
+        comment_text = None
+        dir_auto_tags = comment_el.find_all(lambda tag: tag.name in ['div', 'span'] and tag.get('dir') == 'auto')
+        for tag in dir_auto_tags:
+            # Ensure it is directly inside this comment
+            if tag.find_parent(attrs={"role": "comment"}) != comment_el:
+                continue
+            # Ensure it is not inside an anchor tag (author name)
+            if tag.find_parent('a'):
+                continue
+            val = tag.get_text().strip()
+            if val:
+                comment_text = val
+                break
+                
+        if not comment_text:
+            continue
+            
+        unique_key = f"{author_name}|{comment_text[:100]}"
+        if unique_key in seen_comments:
+            continue
+        seen_comments.add(unique_key)
+        
+        # Likes count
+        likes = 0
+        reaction_els = comment_el.find_all(lambda tag: tag.name in ['div', 'span'] and tag.get('aria-label') and any(x in tag.get('aria-label').lower() for x in ['thích', 'like', 'reaction', 'bày tỏ']))
+        for rx in reaction_els:
+            rx_text = rx.get_text().strip()
+            if rx_text.isdigit():
+                likes = int(rx_text)
+                break
+                
+        published_at = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
+        
+        comments.append({
+            "video_id": post_url,
+            "type": "comment",
+            "author": author_name,
+            "text": comment_text,
+            "likes": likes,
+            "published_at": published_at,
+            "parent_author": None
+        })
+        
     return comments
 
 def get_elements_coordinates_and_roles(driver):
@@ -253,81 +234,55 @@ def get_elements_coordinates_and_roles(driver):
         js_script = """
         var results = [];
         var container = document.querySelector('div[role="main"]') || document.querySelector('div[role="dialog"]') || document;
-        var aTags = container.querySelectorAll('a[href*="profile.php"], a[href*="/user/"], a');
-        var seenWrappers = new Set();
+        var commentEls = container.querySelectorAll('[role="comment"]');
         
-        aTags.forEach(function(a) {
-            var href = a.getAttribute('href') || '';
-            var name = a.innerText.trim();
-            if (!name || name.length < 2 || name.includes('\\n') || ['Thích', 'Like', 'Phản hồi', 'Reply', 'Chia sẻ', 'Share'].includes(name)) return;
+        commentEls.forEach(function(commentEl) {
+            // Find the author link that belongs directly to this comment
+            var authorLink = Array.from(commentEl.querySelectorAll('a')).find(function(a) {
+                var name = a.innerText.trim();
+                return a.closest('[role="comment"]') === commentEl && 
+                       name.length >= 2 && 
+                       !name.includes('\\n') && 
+                       !['Thích', 'Like', 'Phản hồi', 'Reply', 'Chia sẻ', 'Share'].includes(name);
+            });
             
-            // Normalize href to relative path
-            var path = href;
-            var prefixes = ['https://www.facebook.com', 'http://www.facebook.com', 'https://facebook.com', 'http://facebook.com'];
-            for (var i = 0; i < prefixes.length; i++) {
-                if (path.indexOf(prefixes[i]) === 0) {
-                    path = path.substring(prefixes[i].length);
-                    break;
-                }
-            }
+            if (!authorLink) return;
+            var authorName = authorLink.innerText.trim();
             
-            var isProfile = false;
-            if (path.includes('profile.php') || path.includes('/user/')) {
-                isProfile = true;
-            } else if (path.startsWith('/') && path.length > 2) {
-                var systemPaths = ['/posts/', '/photos/', '/videos/', '/groups/', '/permalink', '/sharer', '/messages', '/notifications', '/watch', '/marketplace', '/friends', '/bookmark', '/policies', '/help', '/settings', '/privacy', '/home.php', '/ajax/', '/ads/', '/hashtag/'];
-                var matchSystem = false;
-                for (var i = 0; i < systemPaths.length; i++) {
-                    if (path.includes(systemPaths[i])) { matchSystem = true; break; }
-                }
-                if (!matchSystem) isProfile = true;
-            }
+            // Find the text element that belongs directly to this comment and is not inside a link
+            var textEl = Array.from(commentEl.querySelectorAll('[dir="auto"]')).find(function(el) {
+                return el.closest('[role="comment"]') === commentEl && 
+                       !el.closest('a') && 
+                       el.innerText.trim().length > 0;
+            });
             
-            if (!isProfile) return;
+            var commentText = textEl ? textEl.innerText.trim() : '';
+            if (!commentText) return;
             
-            var p = a.parentElement;
-            var textEl = null;
-            var wrapper = null;
-            
-            for (var i = 0; i < 5; i++) {
-                if (!p) break;
-                var dirAutos = p.querySelectorAll('[dir="auto"]');
-                for (var j = 0; j < dirAutos.length; j++) {
-                    var el = dirAutos[j];
-                    if (el && el.innerText.trim().length > 0 && !a.contains(el)) {
-                        textEl = el;
-                        wrapper = p;
+            // Extract likes count
+            var likes = 0;
+            var likeEls = commentEl.querySelectorAll('*');
+            for (var j = 0; j < likeEls.length; j++) {
+                var label = likeEls[j].getAttribute('aria-label') || '';
+                if (label.toLowerCase().includes('thích') || label.toLowerCase().includes('like') || label.toLowerCase().includes('reaction')) {
+                    var numText = likeEls[j].innerText.trim();
+                    if (/^\\d+$/.test(numText)) {
+                        likes = parseInt(numText);
                         break;
                     }
                 }
-                if (wrapper) break;
-                p = p.parentElement;
             }
             
-            if (wrapper && textEl && !seenWrappers.has(wrapper)) {
-                seenWrappers.add(wrapper);
-                var rect = wrapper.getBoundingClientRect();
-                
-                var likes = 0;
-                var likeEls = wrapper.querySelectorAll('*');
-                for (var j = 0; j < likeEls.length; j++) {
-                    var label = likeEls[j].getAttribute('aria-label') || '';
-                    if (label.toLowerCase().includes('thích') || label.toLowerCase().includes('like') || label.toLowerCase().includes('reaction')) {
-                        var numText = likeEls[j].innerText.trim();
-                        if (/^\\d+$/.test(numText)) {
-                            likes = parseInt(numText);
-                            break;
-                        }
-                    }
-                }
-                results.push({
-                    author: name,
-                    text: textEl.innerText.trim(),
-                    likes: likes,
-                    x: rect.left,
-                    y: rect.top + window.scrollY
-                });
-            }
+            // Determine coordinate for nesting check
+            var rect = commentEl.getBoundingClientRect();
+            
+            results.push({
+                author: authorName,
+                text: commentText,
+                likes: likes,
+                x: rect.left,
+                y: rect.top + window.scrollY
+            });
         });
         
         results.sort(function(a, b) { return a.y - b.y; });
