@@ -100,17 +100,16 @@ function runPythonScraper(config) {
     exec(command, (error, stdout, stderr) => {
       // Clean up config file
       try { fs.unlinkSync(configPath); } catch (_) {}
-      
+      console.log(`Python stdout:`, stdout);
+      console.log(`Python stderr:`, stderr);
+
       if (error) {
         console.error(`Python script error:`, error);
-        console.error(`stderr:`, stderr);
         // Clean up output file if it was created
         try { fs.unlinkSync(outputPath); } catch (_) {}
         reject(new Error(stderr || error.message || 'Lỗi không xác định khi cào Facebook'));
         return;
       }
-      
-      console.log(`Python stdout:`, stdout);
       
       try {
         if (!fs.existsSync(outputPath)) {

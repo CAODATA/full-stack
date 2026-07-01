@@ -29,7 +29,10 @@ def init_driver(user_data_dir, profile_name):
     import sys
     if sys.platform != "win32":
         opts.add_argument("--headless=new")
+        opts.add_argument("--disable-gpu")
         
+    opts.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+    opts.add_argument("--disable-blink-features=AutomationControlled")
     opts.add_argument("--disable-notifications")
     opts.add_argument("--disable-infobars")
     opts.add_argument("--window-size=1280,900")
