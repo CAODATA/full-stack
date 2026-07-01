@@ -510,6 +510,15 @@ def login_facebook_if_needed(driver, email, password):
             raise Exception("Không tìm thấy đủ các ô nhập email/mật khẩu hoặc nút đăng nhập để thực hiện đăng nhập Facebook.")
     except Exception as e:
         logger.error(f"❌ Đăng nhập tự động thất bại: {e}")
+        try:
+            screenshot_dir = os.path.join(os.getcwd(), 'public')
+            os.makedirs(screenshot_dir, exist_ok=True)
+            driver.save_screenshot(os.path.join(screenshot_dir, 'login_error.png'))
+            with open(os.path.join(screenshot_dir, 'login_error.html'), 'w', encoding='utf-8') as f:
+                f.write(driver.page_source)
+            logger.info("📸 Đã chụp ảnh màn hình lỗi tại public/login_error.png và lưu HTML tại public/login_error.html")
+        except Exception as ex:
+            logger.error(f"❌ Không thể chụp ảnh màn hình lỗi: {ex}")
         raise e
 
 def main():
