@@ -166,7 +166,7 @@ export default function Home() {
           {error && (
             <div style={styles.error}>
               <div>{error}</div>
-              {error.includes('Đăng nhập') && (
+              {fbCount > 0 && (
                 <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#fca5a5' }}>
                   💡 Bạn có thể: {' '}
                   <a
@@ -175,7 +175,7 @@ export default function Home() {
                     rel="noreferrer"
                     style={{ color: '#93c5fd', textDecoration: 'underline', fontWeight: 'bold' }}
                   >
-                    Xem ảnh chụp màn hình Chrome lỗi
+                    Xem ảnh chụp màn hình Chrome hiện tại
                   </a>
                   {' hoặc '}
                   <a
@@ -184,7 +184,7 @@ export default function Home() {
                     rel="noreferrer"
                     style={{ color: '#93c5fd', textDecoration: 'underline', fontWeight: 'bold' }}
                   >
-                    Xem mã nguồn HTML lỗi
+                    Xem mã nguồn HTML hiện tại
                   </a>
                 </div>
               )}

@@ -402,6 +402,16 @@ def scrape_facebook_post(driver, url, max_comments):
                 "parent_author": parent_author
             })
             
+    try:
+        screenshot_dir = os.path.join(os.getcwd(), 'public')
+        os.makedirs(screenshot_dir, exist_ok=True)
+        driver.save_screenshot(os.path.join(screenshot_dir, 'login_error.png'))
+        with open(os.path.join(screenshot_dir, 'login_error.html'), 'w', encoding='utf-8') as f:
+            f.write(driver.page_source)
+        logger.info("📸 Đã lưu ảnh chụp màn hình trạng thái cuối cùng của trang tại public/login_error.png")
+    except Exception as ex:
+        logger.warning(f"⚠️ Không thể lưu ảnh chụp màn hình debug: {ex}")
+
     logger.info(f"✅ Thành công: Đã lấy được {len(comments)} bình luận từ {url}")
     return comments
 
