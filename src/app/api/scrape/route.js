@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { exec } from 'child_process';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 
 const API_KEY = "AIzaSyCFE_4B4q8zJZR1L502_RrtdHbuj187s7w";
 
@@ -78,7 +79,7 @@ async function getComments(youtube, videoId, maxResults = 100000) {
 
 function runPythonScraper(config) {
   return new Promise((resolve, reject) => {
-    const tempDir = path.join(process.cwd(), 'tmp');
+    const tempDir = path.join(os.tmpdir(), 'yt-scraper-web-tmp');
     if (!fs.existsSync(tempDir)) {
       fs.mkdirSync(tempDir, { recursive: true });
     }
