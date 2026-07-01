@@ -1,4 +1,4 @@
-FROM node:18-bullseye-slim
+FROM node:20-bookworm-slim
 
 # Install system dependencies, Python, pip, Google Chrome and its driver dependencies
 RUN apt-get update && apt-get install -y \
