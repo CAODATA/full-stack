@@ -366,6 +366,55 @@ def scrape_facebook_post(driver, url, max_comments):
     logger.info(f"✅ Thành công: Đã lấy được {len(comments)} bình luận từ {url}")
     return comments
 
+def login_facebook_if_needed(driver, email, password):
+    if not email or not password:
+        return
+    logger.info("🔑 Đang kiểm tra trạng thái đăng nhập Facebook...")
+    driver.get("https://www.facebook.com/")
+    time.sleep(3)
+    
+    # Check if already logged in (look for search bar or navigation)
+    is_logged_in = False
+    for xpath in [
+        "//input[@placeholder='Tìm kiếm trên Facebook']",
+        "//a[@aria-label='Facebook']",
+        "//div[@role='navigation']"
+    ]:
+        try:
+            if driver.find_element(By.XPATH, xpath).is_displayed():
+                is_logged_in = True
+                break
+        except Exception:
+            continue
+            
+    if is_logged_in:
+        logger.info("✅ Đã đăng nhập Facebook sẵn.")
+        return
+        
+    logger.info("🔑 Chưa đăng nhập. Đang tiến hành đăng nhập tự động...")
+    try:
+        email_input = driver.find_element(By.ID, "email")
+        pass_input = driver.find_element(By.ID, "pass")
+        login_btn = driver.find_element(By.NAME, "login")
+        
+        email_input.clear()
+        email_input.send_keys(email)
+        time.sleep(0.5)
+        pass_input.clear()
+        pass_input.send_keys(password)
+        time.sleep(0.5)
+        
+        login_btn.click()
+        logger.info("⏳ Chờ điều hướng đăng nhập...")
+        time.sleep(6)
+        
+        # Verify login succeeded
+        driver.get("https://www.facebook.com/")
+        time.sleep(3)
+        logger.info("✅ Hoàn tất đăng nhập.")
+    except Exception as e:
+        logger.error(f"❌ Đăng nhập tự động thất bại: {e}")
+
 def main():
     if len(sys.argv) < 2:
         logger.error("❌ Thiếu đối số đường dẫn file cấu hình JSON.")
@@ -384,6 +433,8 @@ def main():
     profile_name = config.get("chrome_profile", "Default")
     max_comments = config.get("max_comments", 1000)
     output_file = config.get("output_file", "")
+    fb_email = config.get("fb_email", "")
+    fb_password = config.get("fb_password", "")
     
     if not urls:
         logger.error("❌ Không có URL nào để cào.")
@@ -398,6 +449,11 @@ def main():
     
     try:
         driver = init_driver(user_data_dir, profile_name)
+        
+        # Log in if credentials provided
+        if fb_email and fb_password:
+            login_facebook_if_needed(driver, fb_email, fb_password)
+            
         for url in urls:
             try:
                 comments = scrape_facebook_post(driver, url, max_comments)

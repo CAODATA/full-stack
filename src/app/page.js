@@ -9,6 +9,8 @@ export default function Home() {
   const [chromeUserData, setChromeUserData] = useState('');
   const [chromeProfile, setChromeProfile] = useState('Default');
   const [maxComments, setMaxComments] = useState(200);
+  const [fbEmail, setFbEmail] = useState('');
+  const [fbPassword, setFbPassword] = useState('');
 
   // Real-time link parsing
   const getLinkCounts = () => {
@@ -46,7 +48,9 @@ export default function Home() {
           links,
           chromeUserData,
           chromeProfile,
-          maxComments
+          maxComments,
+          fbEmail,
+          fbPassword
         })
       });
 
@@ -164,6 +168,28 @@ export default function Home() {
                     value={chromeProfile}
                     onChange={(e) => setChromeProfile(e.target.value)}
                     style={styles.input}
+                  />
+                </div>
+
+                <div style={styles.inputGroup}>
+                  <label style={styles.labelSub}>Tài khoản Facebook (Tùy chọn):</label>
+                  <input
+                    type="text"
+                    value={fbEmail}
+                    onChange={(e) => setFbEmail(e.target.value)}
+                    style={styles.input}
+                    placeholder="Email hoặc số điện thoại đăng nhập Facebook"
+                  />
+                </div>
+
+                <div style={styles.inputGroup}>
+                  <label style={styles.labelSub}>Mật khẩu Facebook (Tùy chọn):</label>
+                  <input
+                    type="password"
+                    value={fbPassword}
+                    onChange={(e) => setFbPassword(e.target.value)}
+                    style={styles.input}
+                    placeholder="Mật khẩu tài khoản Facebook"
                   />
                 </div>
 
