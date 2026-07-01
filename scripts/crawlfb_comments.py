@@ -333,8 +333,23 @@ def get_elements_coordinates_and_roles(driver):
 def scrape_facebook_post(driver, url, max_comments):
     logger.info(f"🌐 Đang mở bài viết Facebook: {url}")
     driver.get(url)
-    time.sleep(5)
+    time.sleep(7)
     
+    current = driver.current_url.lower()
+    logger.info(f"📍 URL bài viết thực tế sau khi tải: {driver.current_url}")
+    
+    # Check if we were redirected to the home page or watch home page
+    if current.endswith("facebook.com/") or current.endswith("facebook.com") or "facebook.com/home.php" in current or "facebook.com/?ref=logo" in current:
+        try:
+            screenshot_dir = os.path.join(os.getcwd(), 'public')
+            os.makedirs(screenshot_dir, exist_ok=True)
+            driver.save_screenshot(os.path.join(screenshot_dir, 'login_error.png'))
+            with open(os.path.join(screenshot_dir, 'login_error.html'), 'w', encoding='utf-8') as f:
+                f.write(driver.page_source)
+        except Exception:
+            pass
+        raise Exception("Không thể truy cập bài viết. Trình duyệt bị điều hướng về trang chủ Facebook. Hãy kiểm tra xem: 1) Liên kết bài viết có đúng không, 2) Bài viết có ở chế độ riêng tư/nhóm kín không, hoặc 3) Tài khoản cookie bạn dán vào có quyền xem bài viết này không.")
+        
     for label in ["Đóng", "Close", "Not Now", "Lúc khác"]:
         try:
             driver.find_element(By.XPATH, f"//div[@aria-label='{label}']").click()
