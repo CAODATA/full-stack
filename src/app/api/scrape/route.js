@@ -232,19 +232,16 @@ export async function POST(req) {
       // Prefer UI setting, then hardcoded user path C:\Users\3551\..., then general LocalAppData
       let finalUserData = chromeUserData || '';
       if (!finalUserData) {
-        const hardcoded3551 = 'C:\\Users\\3551\\AppData\\Local\\Google\\Chrome\\User Data';
         const defaultLocal = process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, 'Google\\Chrome\\User Data') : '';
+        const hardcoded3551 = 'C:\\Users\\3551\\AppData\\Local\\Google\\Chrome\\User Data';
+        const hardcodedAdmin = 'C:\\Users\\Admin\\AppData\\Local\\Google\\Chrome\\User Data';
         
-        if (fs.existsSync(hardcoded3551)) {
-          finalUserData = hardcoded3551;
-        } else if (defaultLocal && fs.existsSync(defaultLocal)) {
+        if (defaultLocal && fs.existsSync(defaultLocal)) {
           finalUserData = defaultLocal;
-        } else {
-          // Fallback to C:\Users\Admin\...
-          const hardcodedAdmin = 'C:\\Users\\Admin\\AppData\\Local\\Google\\Chrome\\User Data';
-          if (fs.existsSync(hardcodedAdmin)) {
-            finalUserData = hardcodedAdmin;
-          }
+        } else if (fs.existsSync(hardcoded3551)) {
+          finalUserData = hardcoded3551;
+        } else if (fs.existsSync(hardcodedAdmin)) {
+          finalUserData = hardcodedAdmin;
         }
       }
 

@@ -6,7 +6,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [chromeUserData, setChromeUserData] = useState('C:\\Users\\3551\\AppData\\Local\\Google\\Chrome\\User Data');
+  const [chromeUserData, setChromeUserData] = useState('');
   const [chromeProfile, setChromeProfile] = useState('Default');
   const [maxComments, setMaxComments] = useState(200);
 
@@ -42,7 +42,7 @@ export default function Home() {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           links,
           chromeUserData,
           chromeProfile,
@@ -65,7 +65,7 @@ export default function Home() {
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-      
+
     } catch (err) {
       setError(err.message);
     } finally {
@@ -118,11 +118,11 @@ export default function Home() {
               )}
             </div>
           )}
-          
+
           {/* Advanced config accordion */}
           <div style={styles.advancedWrapper}>
-            <button 
-              type="button" 
+            <button
+              type="button"
               onClick={() => setShowAdvanced(!showAdvanced)}
               style={styles.advancedToggle}
             >
@@ -133,13 +133,13 @@ export default function Home() {
                 display: 'inline-block'
               }}>▼</span>
             </button>
-            
+
             {showAdvanced && (
               <div style={styles.advancedContent}>
                 <div style={styles.inputGroup}>
                   <label style={styles.labelSub}>Số lượng cmt tối đa mỗi link:</label>
-                  <input 
-                    type="number" 
+                  <input
+                    type="number"
                     value={maxComments}
                     onChange={(e) => setMaxComments(e.target.value)}
                     style={styles.input}
@@ -148,19 +148,19 @@ export default function Home() {
 
                 <div style={styles.inputGroup}>
                   <label style={styles.labelSub}>Đường dẫn Chrome User Data:</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     value={chromeUserData}
                     onChange={(e) => setChromeUserData(e.target.value)}
                     style={styles.input}
-                    placeholder="C:\Users\Admin\AppData\Local\Google\Chrome\User Data"
+                    placeholder="Tự động nhận diện (Để trống để tự động lấy Chrome của máy bạn)"
                   />
                 </div>
 
                 <div style={styles.inputGroup}>
                   <label style={styles.labelSub}>Tên Chrome Profile:</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     value={chromeProfile}
                     onChange={(e) => setChromeProfile(e.target.value)}
                     style={styles.input}
@@ -171,7 +171,7 @@ export default function Home() {
                   <div style={styles.noticeCard}>
                     <p style={styles.noticeTitle}>⚠️ Lưu ý cào Facebook:</p>
                     <p style={styles.noticeText}>
-                      1. Bạn cần <b>đóng hoàn toàn tất cả cửa sổ Chrome thường</b> trên máy trước khi bắt đầu.<br/>
+                      1. Bạn cần <b>đóng hoàn toàn tất cả cửa sổ Chrome thường</b> trên máy trước khi bắt đầu.<br />
                       2. Đảm bảo Profile Chrome đã cấu hình ở trên đã đăng nhập sẵn vào Facebook.
                     </p>
                   </div>
@@ -182,16 +182,16 @@ export default function Home() {
 
           {error && <div style={styles.error}>{error}</div>}
 
-          <button 
-            type="submit" 
-            style={{...styles.button, ...(loading ? styles.buttonDisabled : {})}}
+          <button
+            type="submit"
+            style={{ ...styles.button, ...(loading ? styles.buttonDisabled : {}) }}
             disabled={loading}
           >
             {loading ? (
               <span style={styles.loadingText}>
                 <span className="spinner" style={styles.spinner}></span>
-                {fbCount > 0 
-                  ? 'Đang mở Chrome để cào Facebook... (có thể mất vài phút)' 
+                {fbCount > 0
+                  ? 'Đang mở Chrome để cào Facebook... (có thể mất vài phút)'
                   : 'Đang xử lý dữ liệu...'}
               </span>
             ) : (
@@ -202,7 +202,8 @@ export default function Home() {
       </div>
 
       {/* Basic inline keyframes for spinner */}
-      <style dangerouslySetInnerHTML={{__html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
