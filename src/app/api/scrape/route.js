@@ -92,7 +92,8 @@ function runPythonScraper(config) {
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
     
     const pythonScriptPath = path.join(process.cwd(), 'scripts', 'crawlfb_comments.py');
-    const command = `python "${pythonScriptPath}" "${configPath}"`;
+    const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+    const command = `${pythonCmd} "${pythonScriptPath}" "${configPath}"`;
     
     console.log(`Running Python script: ${command}`);
     
