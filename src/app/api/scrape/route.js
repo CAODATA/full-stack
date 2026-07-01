@@ -160,7 +160,8 @@ function cleanData(comments) {
       'Tác giả': cleanAuthor,
       'Nội dung bình luận': cleanText,
       'Lượt thích': c.likes,
-      'Ngày đăng (UTC)': formattedDate
+      'Ngày đăng (UTC)': formattedDate,
+      video_id: c.video_id
     });
   }
   return cleaned;
@@ -260,10 +261,7 @@ export async function POST(req) {
         for (const url of facebookUrls) {
           allData.push(['--- LINK FACEBOOK ---', url, '', '', '', '']);
           
-          const postComments = cleanedFb.filter((_, index) => {
-            // rawFbComments and cleanedFb match index positions
-            return rawFbComments[index] && rawFbComments[index].video_id === url;
-          });
+          const postComments = cleanedFb.filter(item => item.video_id === url);
           
           if (postComments.length === 0) {
             allData.push(['Không có bình luận nào.', '', '', '', '', '']);
