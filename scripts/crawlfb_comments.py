@@ -390,6 +390,85 @@ def scrape_facebook_post(driver, url, max_comments):
     logger.info(f"✅ Thành công: Đã lấy được {len(comments)} bình luận từ {url}")
     return comments
 
+def load_fb_cookie_string(driver, cookie_str):
+    try:
+        logger.info("🔑 Đang tiến hành đăng nhập Facebook bằng Cookie...")
+        driver.get("https://www.facebook.com")
+        time.sleep(4)
+        
+        # Check and handle cookie banner
+        cookie_xpaths = [
+            "//button[@data-cookiebanner='accept_button']",
+            "//button[contains(@data-testid, 'cookie-policy')]",
+            "//button[contains(text(), 'Allow')]",
+            "//button[contains(text(), 'Accept')]",
+            "//span[contains(text(), 'Cho phép')]/..",
+            "//button[contains(text(), 'Cho phép')]",
+            "//button[contains(text(), 'Chấp nhận')]"
+        ]
+        for xpath in cookie_xpaths:
+            try:
+                btn = driver.find_element(By.XPATH, xpath)
+                driver.execute_script("arguments[0].click();", btn)
+                logger.info("🍪 Đã đóng cookie banner trong lúc nạp cookie.")
+                time.sleep(1)
+                break
+            except Exception:
+                pass
+                
+        # Parse cookie string
+        pairs = cookie_str.split(";")
+        added_count = 0
+        for pair in pairs:
+            pair = pair.strip()
+            if not pair or "=" not in pair:
+                continue
+            name, val = pair.split("=", 1)
+            driver.add_cookie({
+                "name": name.strip(),
+                "value": val.strip(),
+                "domain": ".facebook.com",
+                "path": "/"
+            })
+            added_count += 1
+            
+        logger.info(f"🍪 Đã nạp {added_count} cookie vào trình duyệt. Đang tải lại trang...")
+        driver.get("https://www.facebook.com")
+        time.sleep(6)
+        
+        # Verify authenticated state
+        is_logged_in = False
+        for xpath in [
+            "//input[@placeholder='Tìm kiếm trên Facebook']",
+            "//a[@aria-label='Facebook']",
+            "//div[@role='navigation']",
+            "//a[contains(@href, '/me/')]",
+            "//div[contains(@aria-label, 'Xem thêm thông tin')]"
+        ]:
+            try:
+                if driver.find_element(By.XPATH, xpath):
+                    is_logged_in = True
+                    break
+            except Exception:
+                continue
+                
+        if is_logged_in:
+            logger.info("✅ Đăng nhập bằng Cookie thành công!")
+        else:
+            raise Exception("Đăng nhập bằng Cookie thất bại. Cookie có thể đã hết hạn hoặc thiếu trường xác thực (c_user, xs).")
+            
+    except Exception as e:
+        logger.error(f"❌ Nạp Cookie thất bại: {e}")
+        try:
+            screenshot_dir = os.path.join(os.getcwd(), 'public')
+            os.makedirs(screenshot_dir, exist_ok=True)
+            driver.save_screenshot(os.path.join(screenshot_dir, 'login_error.png'))
+            with open(os.path.join(screenshot_dir, 'login_error.html'), 'w', encoding='utf-8') as f:
+                f.write(driver.page_source)
+        except Exception:
+            pass
+        raise e
+
 def login_facebook_if_needed(driver, email, password):
     if not email or not password:
         return
@@ -406,7 +485,7 @@ def login_facebook_if_needed(driver, email, password):
         "//div[@role='navigation']"
     ]:
         try:
-            if driver.find_element(By.XPATH, xpath).is_displayed():
+            if driver.find_element(By.XPATH, xpath):
                 is_logged_in = True
                 break
         except Exception:
@@ -431,11 +510,10 @@ def login_facebook_if_needed(driver, email, password):
     for xpath in cookie_xpaths:
         try:
             btn = driver.find_element(By.XPATH, xpath)
-            if btn.is_displayed():
-                driver.execute_script("arguments[0].click();", btn)
-                logger.info("🍪 Đã chấp nhận cookie banner.")
-                time.sleep(2)
-                break
+            driver.execute_script("arguments[0].click();", btn)
+            logger.info("🍪 Đã chấp nhận cookie banner.")
+            time.sleep(2)
+            break
         except Exception:
             pass
 
@@ -499,13 +577,32 @@ def login_facebook_if_needed(driver, email, password):
             
             logger.info(f"📍 URL sau khi đăng nhập: {driver.current_url} | Tiêu đề: {driver.title}")
             
-            # Check if login was blocked or succeeded
-            if "login" in driver.current_url or "checkpoint" in driver.current_url:
-                raise Exception(f"Đăng nhập thất bại. Trình duyệt đang đứng tại: {driver.current_url}")
-                
+            # Go to home page to check login state
             driver.get("https://www.facebook.com/")
-            time.sleep(4)
-            logger.info("✅ Hoàn tất quá trình đăng nhập.")
+            time.sleep(5)
+            
+            is_logged_in_final = False
+            for xpath in [
+                "//input[@placeholder='Tìm kiếm trên Facebook']",
+                "//a[@aria-label='Facebook']",
+                "//div[@role='navigation']",
+                "//a[contains(@href, '/me/')]",
+                "//div[contains(@aria-label, 'Xem thêm thông tin')]"
+            ]:
+                try:
+                    if driver.find_element(By.XPATH, xpath):
+                        is_logged_in_final = True
+                        break
+                except Exception:
+                    continue
+            
+            if is_logged_in_final:
+                logger.info("✅ Đăng nhập thành công và xác thực trạng thái hoạt động.")
+            else:
+                if "two_step_verification" in driver.current_url or "checkpoint" in driver.current_url:
+                    raise Exception(f"Tài khoản yêu cầu xác thực 2 lớp (2FA). Trình duyệt đang đứng tại: {driver.current_url}")
+                else:
+                    raise Exception(f"Không thể đăng nhập vào Facebook. Thông tin tài khoản/mật khẩu có thể không chính xác. Trình duyệt đang đứng tại: {driver.current_url}")
         else:
             raise Exception("Không tìm thấy đủ các ô nhập email/mật khẩu hoặc nút đăng nhập để thực hiện đăng nhập Facebook.")
     except Exception as e:
@@ -541,6 +638,7 @@ def main():
     output_file = config.get("output_file", "")
     fb_email = config.get("fb_email", "")
     fb_password = config.get("fb_password", "")
+    fb_cookie = config.get("fb_cookie", "")
     
     if not urls:
         logger.error("❌ Không có URL nào để cào.")
@@ -556,8 +654,10 @@ def main():
     try:
         driver = init_driver(user_data_dir, profile_name)
         
-        # Log in if credentials provided
-        if fb_email and fb_password:
+        # Log in using cookie if provided, otherwise fallback to password login
+        if fb_cookie:
+            load_fb_cookie_string(driver, fb_cookie)
+        elif fb_email and fb_password:
             login_facebook_if_needed(driver, fb_email, fb_password)
             
         for url in urls:

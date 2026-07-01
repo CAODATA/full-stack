@@ -171,7 +171,7 @@ function cleanData(comments) {
 export async function POST(req) {
   try {
     const body = await req.json();
-    const { links, chromeUserData, chromeProfile, maxComments, fbEmail, fbPassword } = body;
+    const { links, chromeUserData, chromeProfile, maxComments, fbEmail, fbPassword, fbCookie } = body;
 
     if (!links || links.length === 0) {
       return NextResponse.json({ error: 'No links provided' }, { status: 400 });
@@ -253,7 +253,8 @@ export async function POST(req) {
         chrome_profile: chromeProfile || 'Default',
         max_comments: maxComments ? parseInt(maxComments) : 100000,
         fb_email: fbEmail || process.env.FB_EMAIL || '',
-        fb_password: fbPassword || process.env.FB_PASSWORD || ''
+        fb_password: fbPassword || process.env.FB_PASSWORD || '',
+        fb_cookie: fbCookie || process.env.FB_COOKIE || ''
       };
 
       try {

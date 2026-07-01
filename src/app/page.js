@@ -10,6 +10,7 @@ export default function Home() {
   const [maxComments, setMaxComments] = useState('');
   const [fbEmail, setFbEmail] = useState('');
   const [fbPassword, setFbPassword] = useState('');
+  const [fbCookie, setFbCookie] = useState('');
 
   // Real-time link parsing
   const getLinkCounts = () => {
@@ -49,7 +50,8 @@ export default function Home() {
           chromeProfile,
           maxComments,
           fbEmail,
-          fbPassword
+          fbPassword,
+          fbCookie
         })
       });
 
@@ -134,6 +136,23 @@ export default function Home() {
               min="1"
             />
           </div>
+
+          {fbCount > 0 && (
+            <div style={styles.inputGroup}>
+              <label style={styles.label}>
+                Facebook Cookie (Tùy chọn):
+                <span style={{ fontSize: '0.8rem', fontWeight: 'normal', color: '#94a3b8', marginLeft: '0.5rem' }}>
+                  (Khuyên dùng: Dán cookie để bỏ qua Email/Mật khẩu và vượt qua xác thực 2 lớp - 2FA)
+                </span>
+              </label>
+              <textarea
+                style={{ ...styles.textarea, height: '80px', fontFamily: 'monospace', fontSize: '0.85rem' }}
+                placeholder="Ví dụ: sb=xxxx; datr=xxxx; c_user=xxxx; xs=xxxx; ..."
+                value={fbCookie}
+                onChange={(e) => setFbCookie(e.target.value)}
+              />
+            </div>
+          )}
 
           {fbCount > 0 && (
             <div style={styles.noticeCard}>
