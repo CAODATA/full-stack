@@ -416,21 +416,49 @@ def load_fb_cookie_string(driver, cookie_str):
             except Exception:
                 pass
                 
-        # Parse cookie string
-        pairs = cookie_str.split(";")
+        # Parse cookie string (supports both standard key=val; and Netscape format)
         added_count = 0
-        for pair in pairs:
-            pair = pair.strip()
-            if not pair or "=" not in pair:
-                continue
-            name, val = pair.split("=", 1)
-            driver.add_cookie({
-                "name": name.strip(),
-                "value": val.strip(),
-                "domain": ".facebook.com",
-                "path": "/"
-            })
-            added_count += 1
+        if "# Netscape" in cookie_str or "\t" in cookie_str:
+            logger.info("ℹ️ Đang phân tích Cookie định dạng Netscape...")
+            for line in cookie_str.split("\n"):
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                parts = line.split("\t")
+                if len(parts) >= 7:
+                    domain = parts[0]
+                    path = parts[2]
+                    name = parts[5]
+                    val = parts[6]
+                    try:
+                        driver.add_cookie({
+                            "name": name.strip(),
+                            "value": val.strip(),
+                            "domain": domain.strip(),
+                            "path": path.strip()
+                        })
+                        added_count += 1
+                    except Exception as cookie_err:
+                        # Log error for individual invalid cookies
+                        pass
+        else:
+            logger.info("ℹ️ Đang phân tích Cookie định dạng chuỗi key=val...")
+            pairs = cookie_str.split(";")
+            for pair in pairs:
+                pair = pair.strip()
+                if not pair or "=" not in pair:
+                    continue
+                name, val = pair.split("=", 1)
+                try:
+                    driver.add_cookie({
+                        "name": name.strip(),
+                        "value": val.strip(),
+                        "domain": ".facebook.com",
+                        "path": "/"
+                    })
+                    added_count += 1
+                except Exception:
+                    pass
             
         logger.info(f"🍪 Đã nạp {added_count} cookie vào trình duyệt. Đang tải lại trang...")
         driver.get("https://www.facebook.com")
