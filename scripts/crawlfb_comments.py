@@ -350,15 +350,6 @@ def scrape_facebook_post(driver, url, max_comments):
             pass
         raise Exception("Không thể truy cập bài viết. Trình duyệt bị điều hướng về trang chủ Facebook. Hãy kiểm tra xem: 1) Liên kết bài viết có đúng không, 2) Bài viết có ở chế độ riêng tư/nhóm kín không, hoặc 3) Tài khoản cookie bạn dán vào có quyền xem bài viết này không.")
         
-    for label in ["Đóng", "Close", "Not Now", "Lúc khác"]:
-        try:
-            driver.find_element(By.XPATH, f"//div[@aria-label='{label}']").click()
-            logger.info(f"✅ Đã đóng popup '{label}'")
-            time.sleep(1)
-            break
-        except NoSuchElementException:
-            pass
-            
     expand_comments(driver, max_comments)
     
     logger.info("📊 Bắt đầu trích xuất nội dung bình luận...")
