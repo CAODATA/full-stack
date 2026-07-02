@@ -167,25 +167,47 @@ export default function Home() {
             <div style={styles.error}>
               <div>{error}</div>
               {fbCount > 0 && (
-                <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#fca5a5' }}>
-                  💡 Bạn có thể: {' '}
-                  <a
-                    href="/api/login-error-screenshot"
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{ color: '#93c5fd', textDecoration: 'underline', fontWeight: 'bold' }}
-                  >
-                    Xem ảnh chụp màn hình Chrome hiện tại
-                  </a>
-                  {' hoặc '}
-                  <a
-                    href="/api/login-error-html"
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{ color: '#93c5fd', textDecoration: 'underline', fontWeight: 'bold' }}
-                  >
-                    Xem mã nguồn HTML hiện tại
-                  </a>
+                <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#fca5a5', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <div>
+                    💡 <b>Trạng thái xác thực (Passkey/2FA):</b>{' '}
+                    <a
+                      href="/api/login-error-screenshot?type=verification"
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ color: '#93c5fd', textDecoration: 'underline', fontWeight: 'bold' }}
+                    >
+                      Xem ảnh chụp màn hình 2FA
+                    </a>
+                    {' | '}
+                    <a
+                      href="/api/login-error-html?type=verification"
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ color: '#93c5fd', textDecoration: 'underline', fontWeight: 'bold' }}
+                    >
+                      Xem mã nguồn HTML 2FA
+                    </a>
+                  </div>
+                  <div>
+                    💡 <b>Trạng thái cuối cùng của trình duyệt:</b>{' '}
+                    <a
+                      href="/api/login-error-screenshot"
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ color: '#93c5fd', textDecoration: 'underline', fontWeight: 'bold' }}
+                    >
+                      Xem ảnh chụp màn hình Chrome
+                    </a>
+                    {' | '}
+                    <a
+                      href="/api/login-error-html"
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ color: '#93c5fd', textDecoration: 'underline', fontWeight: 'bold' }}
+                    >
+                      Xem mã nguồn HTML Chrome
+                    </a>
+                  </div>
                 </div>
               )}
             </div>

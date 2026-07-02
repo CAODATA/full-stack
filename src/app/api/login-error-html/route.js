@@ -2,10 +2,14 @@ import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 
-export async function GET() {
-  const filePath = path.join(process.cwd(), 'public', 'login_error.html');
+export async function GET(request) {
+  const { searchParams } = new URL(request.url);
+  const type = searchParams.get('type');
+  const filename = type === 'verification' ? 'verification_error.html' : 'login_error.html';
+
+  const filePath = path.join(process.cwd(), 'public', filename);
   if (!fs.existsSync(filePath)) {
-    return new NextResponse('No error HTML found. Perform a scrape attempt first.', { status: 404 });
+    return new NextResponse(`No error HTML found for ${filename}. Perform a scrape attempt first.`, { status: 404 });
   }
 
   const htmlContent = fs.readFileSync(filePath, 'utf-8');
