@@ -408,50 +408,71 @@ def load_fb_cookie_string(driver, cookie_str):
             except Exception:
                 pass
                 
-        # Parse cookie string (supports both standard key=val; and Netscape format)
-        added_count = 0
-        if "# Netscape" in cookie_str or "\t" in cookie_str:
+        # Parse cookie string dynamically (supports Netscape with tabs or spaces, and standard key=val pairs)
+        parsed_cookies = []
+        lines = [l.strip() for l in cookie_str.split('\n') if l.strip()]
+        
+        # Count lines looking like Netscape format (7 columns)
+        netscape_lines_count = 0
+        for line in lines:
+            if line.startswith("#"):
+                continue
+            parts = line.split('\t')
+            if len(parts) < 7:
+                parts = line.split()
+            if len(parts) >= 7:
+                netscape_lines_count += 1
+                
+        if netscape_lines_count > 0 or "# Netscape" in cookie_str or "\t" in cookie_str:
             logger.info("ℹ️ Đang phân tích Cookie định dạng Netscape...")
-            for line in cookie_str.split("\n"):
-                line = line.strip()
-                if not line or line.startswith("#"):
+            for line in lines:
+                if line.startswith("#"):
                     continue
-                parts = line.split("\t")
+                parts = line.split('\t')
+                if len(parts) < 7:
+                    parts = line.split()
                 if len(parts) >= 7:
                     domain = parts[0]
                     path = parts[2]
                     name = parts[5]
                     val = parts[6]
-                    try:
-                        driver.add_cookie({
-                            "name": name.strip(),
-                            "value": val.strip(),
-                            "domain": domain.strip(),
-                            "path": path.strip()
-                        })
-                        added_count += 1
-                    except Exception as cookie_err:
-                        # Log error for individual invalid cookies
-                        pass
-        else:
+                    parsed_cookies.append({
+                        "name": name.strip(),
+                        "value": val.strip(),
+                        "domain": domain.strip(),
+                        "path": path.strip()
+                    })
+        
+        # If not parsed as Netscape, parse as standard key=val pairs
+        if not parsed_cookies:
             logger.info("ℹ️ Đang phân tích Cookie định dạng chuỗi key=val...")
-            pairs = cookie_str.split(";")
+            pairs = []
+            if ";" in cookie_str:
+                pairs = cookie_str.split(";")
+            else:
+                pairs = lines
+                
             for pair in pairs:
                 pair = pair.strip()
                 if not pair or "=" not in pair:
                     continue
                 name, val = pair.split("=", 1)
-                try:
-                    driver.add_cookie({
-                        "name": name.strip(),
-                        "value": val.strip(),
-                        "domain": ".facebook.com",
-                        "path": "/"
-                    })
-                    added_count += 1
-                except Exception:
-                    pass
-            
+                parsed_cookies.append({
+                    "name": name.strip(),
+                    "value": val.strip(),
+                    "domain": ".facebook.com",
+                    "path": "/"
+                })
+                
+        # Add the parsed cookies to Selenium driver
+        added_count = 0
+        for c in parsed_cookies:
+            try:
+                driver.add_cookie(c)
+                added_count += 1
+            except Exception as cookie_err:
+                pass
+                
         logger.info(f"🍪 Đã nạp {added_count} cookie vào trình duyệt. Đang tải lại trang...")
         driver.get("https://www.facebook.com")
         time.sleep(6)
