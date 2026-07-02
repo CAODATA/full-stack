@@ -618,22 +618,26 @@ def login_facebook_if_needed(driver, email, password, totp_secret=None):
             
             logger.info(f"📍 URL sau khi gửi thông tin: {driver.current_url} | Tiêu đề: {driver.title}")
             
-            # Check if 2FA code is requested
+            # Check if 2FA code is requested (check URL or page elements)
             is_2fa_page = False
-            for xpath in [
-                "//input[@id='approvals_code']",
-                "//input[@name='approvals_code']",
-                "//*[contains(text(), 'mã xác thực') or contains(text(), '2-factor') or contains(text(), 'Two-factor') or contains(text(), 'xác thực 2 yếu tố')]"
-            ]:
-                try:
-                    if driver.find_elements(By.XPATH, xpath):
-                        is_2fa_page = True
-                        break
-                except Exception:
-                    continue
-                    
+            if "two_step_verification" in driver.current_url.lower() or "checkpoint" in driver.current_url.lower():
+                is_2fa_page = True
+            else:
+                for xpath in [
+                    "//input[@id='approvals_code']",
+                    "//input[@name='approvals_code']",
+                    "//*[contains(text(), 'mã xác thực') or contains(text(), '2-factor') or contains(text(), 'Two-factor') or contains(text(), 'xác thực 2 yếu tố')]"
+                ]:
+                    try:
+                        if driver.find_elements(By.XPATH, xpath):
+                            is_2fa_page = True
+                            break
+                    except Exception:
+                        continue
+                        
             if is_2fa_page:
                 logger.info("🔐 Facebook yêu cầu mã xác thực 2 yếu tố (2FA)...")
+                time.sleep(3)
                 if totp_secret:
                     try:
                         import pyotp
@@ -645,45 +649,65 @@ def login_facebook_if_needed(driver, email, password, totp_secret=None):
                         for selector in [
                             (By.ID, "approvals_code"),
                             (By.NAME, "approvals_code"),
-                            (By.XPATH, "//input[@type='text' or @type='number']")
+                            (By.XPATH, "//input[@type='text' or @type='number']"),
+                            (By.CSS_SELECTOR, "input[autocomplete='one-time-code']"),
+                            (By.CSS_SELECTOR, "input")
                         ]:
                             try:
-                                code_input = driver.find_element(*selector)
-                                break
+                                elements = driver.find_elements(*selector)
+                                for el in elements:
+                                    if el.is_displayed() and el.is_enabled():
+                                        code_input = el
+                                        break
+                                if code_input:
+                                    break
                             except Exception:
                                 continue
                                 
                         if code_input:
                             code_input.clear()
                             code_input.send_keys(otp_code)
-                            time.sleep(1)
+                            logger.info("✅ Đã điền mã OTP 2FA.")
+                            time.sleep(1.5)
                             
                             submit_btn = None
                             for selector in [
                                 (By.ID, "checkpointSubmitButton"),
                                 (By.XPATH, "//button[@id='checkpointSubmitButton']"),
-                                (By.XPATH, "//button[contains(., 'Tiếp tục') or contains(., 'Continue') or contains(., 'Gửi') or contains(., 'Submit')]")
+                                (By.XPATH, "//button[@type='submit']"),
+                                (By.XPATH, "//button[contains(., 'Tiếp tục') or contains(., 'Continue') or contains(., 'Gửi') or contains(., 'Submit') or contains(., 'Xác nhận')]"),
+                                (By.XPATH, "//*[@role='button' and (contains(., 'Tiếp tục') or contains(., 'Continue'))]")
                             ]:
                                 try:
-                                    submit_btn = driver.find_element(*selector)
-                                    break
+                                    elements = driver.find_elements(*selector)
+                                    for el in elements:
+                                        if el.is_displayed() and el.is_enabled():
+                                            submit_btn = el
+                                            break
+                                    if submit_btn:
+                                        break
                                 except Exception:
                                     continue
                                     
                             if submit_btn:
                                 driver.execute_script("arguments[0].click();", submit_btn)
                                 logger.info("⏳ Đã gửi mã 2FA. Chờ xác thực...")
-                                time.sleep(8)
+                                time.sleep(10)
                                 
-                                # Check for "Trust this browser?" (Lưu trình duyệt?) checkbox/continue button
-                                try:
-                                    trust_btn = driver.find_element(By.XPATH, "//button[@id='checkpointSubmitButton'] or //button[contains(., 'Tiếp tục') or contains(., 'Continue')]")
-                                    if trust_btn:
-                                        driver.execute_script("arguments[0].click();", trust_btn)
-                                        logger.info("✅ Đã bấm Tiếp tục qua bước Lưu trình duyệt")
-                                        time.sleep(5)
-                                except Exception:
-                                    pass
+                                # Check if it asks to save browser or if it asks "Trust this browser?"
+                                for i in range(2):
+                                    try:
+                                        trust_btn = driver.find_element(By.XPATH, "//button[@id='checkpointSubmitButton'] or //button[contains(., 'Tiếp tục') or contains(., 'Continue') or contains(., 'Lưu trình duyệt') or contains(., 'Save Browser')]")
+                                        if trust_btn.is_displayed():
+                                            driver.execute_script("arguments[0].click();", trust_btn)
+                                            logger.info("✅ Đã bấm Tiếp tục qua bước Lưu trình duyệt / Tin cậy thiết bị")
+                                            time.sleep(6)
+                                    except Exception:
+                                        break
+                            else:
+                                logger.error("❌ Không tìm thấy nút Submit mã 2FA!")
+                        else:
+                            logger.error("❌ Không tìm thấy ô nhập mã 2FA!")
                     except Exception as pyotp_err:
                         logger.error(f"❌ Lỗi tự động tạo/nhập mã 2FA: {pyotp_err}")
                 else:
