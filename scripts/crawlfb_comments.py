@@ -618,6 +618,62 @@ def login_facebook_if_needed(driver, email, password, totp_secret=None):
             
             logger.info(f"📍 URL sau khi gửi thông tin: {driver.current_url} | Tiêu đề: {driver.title}")
             
+            # Check if Passkey prompt is requested
+            is_passkey_page = "auth_platform/passkey" in driver.current_url.lower()
+            if is_passkey_page:
+                logger.info("🔑 Facebook hiển thị trang Passkey (xác thực thiết bị). Đang tìm cách chuyển sang OTP...")
+                time.sleep(3)
+                try:
+                    # Look for "Try another way" or "Thử cách khác"
+                    try_another_way_btn = None
+                    for selector in [
+                        (By.XPATH, "//*[contains(text(), 'Thử cách khác') or contains(text(), 'Try another way') or contains(text(), 'phương thức khác') or contains(text(), 'other way')]"),
+                        (By.XPATH, "//div[@role='button'][contains(., 'Thử') or contains(., 'Try') or contains(., 'Other')]")
+                    ]:
+                        try:
+                            elements = driver.find_elements(*selector)
+                            for el in elements:
+                                if el.is_displayed() and el.is_enabled():
+                                    try_another_way_btn = el
+                                    break
+                            if try_another_way_btn:
+                                break
+                        except Exception:
+                            continue
+                            
+                    if try_another_way_btn:
+                        driver.execute_script("arguments[0].click();", try_another_way_btn)
+                        logger.info("✅ Đã bấm nút 'Thử cách khác' trên trang Passkey.")
+                        time.sleep(4)
+                        
+                        # Now select the "Use authenticator app" or "Use verification code" or "SMS" option
+                        option_btn = None
+                        for selector in [
+                            (By.XPATH, "//*[contains(text(), 'ứng dụng xác thực') or contains(text(), 'authenticator') or contains(text(), 'mã xác thực') or contains(text(), 'verification code') or contains(text(), 'tin nhắn') or contains(text(), 'text message') or contains(text(), 'SMS')]"),
+                            (By.XPATH, "//*[contains(text(), 'Gửi mã') or contains(text(), 'Send code')]")
+                        ]:
+                            try:
+                                elements = driver.find_elements(*selector)
+                                for el in elements:
+                                    if el.is_displayed() and el.is_enabled():
+                                        option_btn = el
+                                        break
+                                if option_btn:
+                                    break
+                            except Exception:
+                                continue
+                                
+                        if option_btn:
+                            driver.execute_script("arguments[0].click();", option_btn)
+                            logger.info("✅ Đã chọn phương thức xác thực bằng mã OTP.")
+                            time.sleep(5)
+                        else:
+                            logger.warning("⚠️ Không tìm thấy tùy chọn OTP trong danh sách phương thức khác.")
+                    else:
+                        logger.warning("⚠️ Không tìm thấy nút 'Thử cách khác' trên trang Passkey.")
+                except Exception as passkey_err:
+                    logger.error(f"❌ Lỗi khi xử lý trang Passkey: {passkey_err}")
+
             # Check if 2FA code is requested (check URL or page elements)
             is_2fa_page = False
             if "two_step_verification" in driver.current_url.lower() or "checkpoint" in driver.current_url.lower():
@@ -713,6 +769,18 @@ def login_facebook_if_needed(driver, email, password, totp_secret=None):
                 else:
                     logger.warning("⚠️ Tài khoản yêu cầu 2FA nhưng không tìm thấy cấu hình FB_2FA_SECRET!")
             
+            # Save screenshot of the actual verification state before attempting to navigate away
+            if "two_step_verification" in driver.current_url.lower() or "checkpoint" in driver.current_url.lower() or "auth_platform" in driver.current_url.lower():
+                try:
+                    screenshot_dir = os.path.join(os.getcwd(), 'public')
+                    os.makedirs(screenshot_dir, exist_ok=True)
+                    driver.save_screenshot(os.path.join(screenshot_dir, 'login_error.png'))
+                    with open(os.path.join(screenshot_dir, 'login_error.html'), 'w', encoding='utf-8') as f:
+                        f.write(driver.page_source)
+                    logger.info("📸 Đã chụp ảnh màn hình trạng thái xác thực hiện tại (Passkey/2FA) tại public/login_error.png")
+                except Exception:
+                    pass
+
             # Go to home page to check login state
             driver.get("https://www.facebook.com/")
             time.sleep(5)
