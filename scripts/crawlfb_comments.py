@@ -162,16 +162,20 @@ def parse_comments(html_content, post_url):
     soup = BeautifulSoup(html_content, 'html.parser')
     comments = []
     
-    comment_tags = soup.find_all(attrs={"role": "comment"})
+    article_tags = soup.find_all(attrs={"role": "article"})
     seen_comments = set()
     
-    for comment_el in comment_tags:
+    for comment_el in article_tags:
+        label = (comment_el.get('aria-label') or '').lower()
+        if not any(x in label for x in ['bình luận', 'phản hồi', 'comment', 'reply']):
+            continue
+            
         # Find author name
         author_name = None
         links = comment_el.find_all('a')
         for link in links:
             # Ensure this link is directly inside this comment, not in a nested comment
-            parent_comment = link.find_parent(attrs={"role": "comment"})
+            parent_comment = link.find_parent(attrs={"role": "article"})
             if parent_comment != comment_el:
                 continue
             name = link.get_text().strip()
@@ -187,7 +191,7 @@ def parse_comments(html_content, post_url):
         dir_auto_tags = comment_el.find_all(lambda tag: tag.name in ['div', 'span'] and tag.get('dir') == 'auto')
         for tag in dir_auto_tags:
             # Ensure it is directly inside this comment
-            if tag.find_parent(attrs={"role": "comment"}) != comment_el:
+            if tag.find_parent(attrs={"role": "article"}) != comment_el:
                 continue
             # Ensure it is not inside an anchor tag (author name)
             if tag.find_parent('a'):
@@ -234,13 +238,21 @@ def get_elements_coordinates_and_roles(driver):
         js_script = """
         var results = [];
         var container = document.querySelector('div[role="main"]') || document.querySelector('div[role="dialog"]') || document;
-        var commentEls = container.querySelectorAll('[role="comment"]');
+        var allArticles = container.querySelectorAll('[role="article"]');
+        
+        var commentEls = Array.from(allArticles).filter(function(el) {
+            var label = (el.getAttribute('aria-label') || '').toLowerCase();
+            return label.includes('bình luận') || 
+                   label.includes('phản hồi') || 
+                   label.includes('comment') || 
+                   label.includes('reply');
+        });
         
         commentEls.forEach(function(commentEl) {
             // Find the author link that belongs directly to this comment
             var authorLink = Array.from(commentEl.querySelectorAll('a')).find(function(a) {
                 var name = a.innerText.trim();
-                return a.closest('[role="comment"]') === commentEl && 
+                return a.closest('[role="article"]') === commentEl && 
                        name.length >= 2 && 
                        !name.includes('\\n') && 
                        !['Thích', 'Like', 'Phản hồi', 'Reply', 'Chia sẻ', 'Share'].includes(name);
@@ -251,7 +263,7 @@ def get_elements_coordinates_and_roles(driver):
             
             // Find the text element that belongs directly to this comment and is not inside a link
             var textEl = Array.from(commentEl.querySelectorAll('[dir="auto"]')).find(function(el) {
-                return el.closest('[role="comment"]') === commentEl && 
+                return el.closest('[role="article"]') === commentEl && 
                        !el.closest('a') && 
                        el.innerText.trim().length > 0;
             });
