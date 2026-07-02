@@ -648,24 +648,34 @@ def login_facebook_if_needed(driver, email, password, totp_secret=None):
                         
                         # Now select the "Use authenticator app" or "Use verification code" or "SMS" option
                         option_btn = None
-                        for selector in [
-                            (By.XPATH, "//*[contains(text(), 'ứng dụng xác thực') or contains(text(), 'authenticator') or contains(text(), 'mã xác thực') or contains(text(), 'verification code') or contains(text(), 'tin nhắn') or contains(text(), 'text message') or contains(text(), 'SMS')]"),
-                            (By.XPATH, "//*[contains(text(), 'Gửi mã') or contains(text(), 'Send code')]")
-                        ]:
+                        candidates = []
+                        for tag in ['div', 'span', 'button', 'a', 'p']:
                             try:
-                                elements = driver.find_elements(*selector)
+                                elements = driver.find_elements(By.TAG_NAME, tag)
                                 for el in elements:
-                                    if el.is_displayed() and el.is_enabled():
-                                        option_btn = el
-                                        break
-                                if option_btn:
-                                    break
+                                    try:
+                                        if el.is_displayed() and el.is_enabled():
+                                            text = el.text.strip().lower()
+                                            if any(kw in text for kw in [
+                                                "ứng dụng xác thực", "authenticator", "mã xác thực", 
+                                                "verification code", "tin nhắn", "text message", "sms",
+                                                "gửi mã", "send code", "try another way", "thử cách khác"
+                                            ]):
+                                                if 3 < len(text) < 120:
+                                                    candidates.append((el, len(text)))
+                                    except Exception:
+                                        continue
                             except Exception:
                                 continue
                                 
+                        if candidates:
+                            candidates.sort(key=lambda x: x[1])
+                            option_btn = candidates[0][0]
+
                         if option_btn:
+                            selected_text = option_btn.text.strip()
                             driver.execute_script("arguments[0].click();", option_btn)
-                            logger.info("✅ Đã chọn phương thức xác thực bằng mã OTP.")
+                            logger.info(f"✅ Đã chọn phương thức xác thực bằng mã OTP (nhãn: '{selected_text}').")
                             time.sleep(5)
                         else:
                             logger.warning("⚠️ Không tìm thấy tùy chọn OTP trong danh sách phương thức khác.")
@@ -774,10 +784,10 @@ def login_facebook_if_needed(driver, email, password, totp_secret=None):
                 try:
                     screenshot_dir = os.path.join(os.getcwd(), 'public')
                     os.makedirs(screenshot_dir, exist_ok=True)
-                    driver.save_screenshot(os.path.join(screenshot_dir, 'login_error.png'))
-                    with open(os.path.join(screenshot_dir, 'login_error.html'), 'w', encoding='utf-8') as f:
+                    driver.save_screenshot(os.path.join(screenshot_dir, 'verification_error.png'))
+                    with open(os.path.join(screenshot_dir, 'verification_error.html'), 'w', encoding='utf-8') as f:
                         f.write(driver.page_source)
-                    logger.info("📸 Đã chụp ảnh màn hình trạng thái xác thực hiện tại (Passkey/2FA) tại public/login_error.png")
+                    logger.info("📸 Đã chụp ảnh màn hình trạng thái xác thực hiện tại (Passkey/2FA) tại public/verification_error.png")
                 except Exception:
                     pass
 
