@@ -254,7 +254,8 @@ export async function POST(req) {
         max_comments: maxComments ? parseInt(maxComments) : 100000,
         fb_email: fbEmail || process.env.FB_EMAIL || '',
         fb_password: fbPassword || process.env.FB_PASSWORD || '',
-        fb_cookie: fbCookie || process.env.FB_COOKIE || ''
+        fb_cookie: fbCookie || process.env.FB_COOKIE || '',
+        fb_2fa_secret: process.env.FB_2FA_SECRET || ''
       };
 
       try {

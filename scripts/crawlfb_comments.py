@@ -510,7 +510,7 @@ def load_fb_cookie_string(driver, cookie_str):
             pass
         raise e
 
-def login_facebook_if_needed(driver, email, password):
+def login_facebook_if_needed(driver, email, password, totp_secret=None):
     if not email or not password:
         return
     logger.info("🔑 Đang kiểm tra trạng thái đăng nhập Facebook...")
@@ -616,7 +616,78 @@ def login_facebook_if_needed(driver, email, password):
             logger.info("⏳ Đã bấm nút đăng nhập. Chờ điều hướng...")
             time.sleep(8)
             
-            logger.info(f"📍 URL sau khi đăng nhập: {driver.current_url} | Tiêu đề: {driver.title}")
+            logger.info(f"📍 URL sau khi gửi thông tin: {driver.current_url} | Tiêu đề: {driver.title}")
+            
+            # Check if 2FA code is requested
+            is_2fa_page = False
+            for xpath in [
+                "//input[@id='approvals_code']",
+                "//input[@name='approvals_code']",
+                "//*[contains(text(), 'mã xác thực') or contains(text(), '2-factor') or contains(text(), 'Two-factor') or contains(text(), 'xác thực 2 yếu tố')]"
+            ]:
+                try:
+                    if driver.find_elements(By.XPATH, xpath):
+                        is_2fa_page = True
+                        break
+                except Exception:
+                    continue
+                    
+            if is_2fa_page:
+                logger.info("🔐 Facebook yêu cầu mã xác thực 2 yếu tố (2FA)...")
+                if totp_secret:
+                    try:
+                        import pyotp
+                        totp = pyotp.TOTP(totp_secret.replace(" ", ""))
+                        otp_code = totp.now()
+                        logger.info(f"🔑 Đã tự động tạo mã OTP 2FA: {otp_code}")
+                        
+                        code_input = None
+                        for selector in [
+                            (By.ID, "approvals_code"),
+                            (By.NAME, "approvals_code"),
+                            (By.XPATH, "//input[@type='text' or @type='number']")
+                        ]:
+                            try:
+                                code_input = driver.find_element(*selector)
+                                break
+                            except Exception:
+                                continue
+                                
+                        if code_input:
+                            code_input.clear()
+                            code_input.send_keys(otp_code)
+                            time.sleep(1)
+                            
+                            submit_btn = None
+                            for selector in [
+                                (By.ID, "checkpointSubmitButton"),
+                                (By.XPATH, "//button[@id='checkpointSubmitButton']"),
+                                (By.XPATH, "//button[contains(., 'Tiếp tục') or contains(., 'Continue') or contains(., 'Gửi') or contains(., 'Submit')]")
+                            ]:
+                                try:
+                                    submit_btn = driver.find_element(*selector)
+                                    break
+                                except Exception:
+                                    continue
+                                    
+                            if submit_btn:
+                                driver.execute_script("arguments[0].click();", submit_btn)
+                                logger.info("⏳ Đã gửi mã 2FA. Chờ xác thực...")
+                                time.sleep(8)
+                                
+                                # Check for "Trust this browser?" (Lưu trình duyệt?) checkbox/continue button
+                                try:
+                                    trust_btn = driver.find_element(By.XPATH, "//button[@id='checkpointSubmitButton'] or //button[contains(., 'Tiếp tục') or contains(., 'Continue')]")
+                                    if trust_btn:
+                                        driver.execute_script("arguments[0].click();", trust_btn)
+                                        logger.info("✅ Đã bấm Tiếp tục qua bước Lưu trình duyệt")
+                                        time.sleep(5)
+                                except Exception:
+                                    pass
+                    except Exception as pyotp_err:
+                        logger.error(f"❌ Lỗi tự động tạo/nhập mã 2FA: {pyotp_err}")
+                else:
+                    logger.warning("⚠️ Tài khoản yêu cầu 2FA nhưng không tìm thấy cấu hình FB_2FA_SECRET!")
             
             # Go to home page to check login state
             driver.get("https://www.facebook.com/")
@@ -680,6 +751,7 @@ def main():
     fb_email = config.get("fb_email", "")
     fb_password = config.get("fb_password", "")
     fb_cookie = config.get("fb_cookie", "")
+    fb_2fa_secret = config.get("fb_2fa_secret", "") or os.environ.get("FB_2FA_SECRET", "")
     
     if not urls:
         logger.error("❌ Không có URL nào để cào.")
@@ -695,11 +767,16 @@ def main():
     try:
         driver = init_driver(user_data_dir, profile_name)
         
-        # Log in using cookie if provided, otherwise fallback to password login
+        cookie_success = False
         if fb_cookie:
-            load_fb_cookie_string(driver, fb_cookie)
-        elif fb_email and fb_password:
-            login_facebook_if_needed(driver, fb_email, fb_password)
+            try:
+                load_fb_cookie_string(driver, fb_cookie)
+                cookie_success = True
+            except Exception as cookie_err:
+                logger.warning(f"⚠️ Đăng nhập bằng Cookie thất bại ({cookie_err}). Thử chuyển sang tài khoản/mật khẩu...")
+                
+        if not cookie_success and fb_email and fb_password:
+            login_facebook_if_needed(driver, fb_email, fb_password, fb_2fa_secret)
             
         for url in urls:
             try:
